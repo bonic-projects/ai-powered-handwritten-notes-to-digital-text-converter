@@ -23,7 +23,6 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 def index():
     return render_template('index.html')
 
-# Route to handle file upload and process handwritten notes
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -47,24 +46,8 @@ def upload_file():
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # Deskew the image
-        def deskew_image(image):
-            coords = np.column_stack(np.where(image > 0))
-            angle = cv2.minAreaRect(coords)[-1]
-            if angle < -45:
-                angle = -(90 + angle)
-            else:
-                angle = -angle
-            (h, w) = image.shape[:2]
-            center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, angle, 1.0)
-            deskewed = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-            return deskewed
-
-        deskewed = deskew_image(gray)
-
         # Apply noise reduction using Gaussian blur
-        blurred = cv2.GaussianBlur(deskewed, (5, 5), 0)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
         # Apply adaptive thresholding
         binary = cv2.adaptiveThreshold(
@@ -72,8 +55,7 @@ def upload_file():
         )
 
         # Use Tesseract to extract text
-        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.!? '
-        extracted_text = pytesseract.image_to_string(binary, config=custom_config)
+        extracted_text = pytesseract.image_to_string(binary, config='--psm 6')
 
         # Debugging: Print extracted text
         print("Extracted Text:", extracted_text)
